@@ -1,8 +1,6 @@
 export interface userData{
     username:string;
-    firstname:string;
-    lastname:string;
-    middlename?:string;
+    name:string;
     password:string;
     email:string;
     avatar:string;
@@ -16,9 +14,7 @@ export interface userLogin{
 export interface filteredResultTypes{
     id:number;
     username:string;
-    firstname:string;
-    lastname:string;
-    middlename?:string;
+    name:string;
     email:string;
     avatar?:string;
 }

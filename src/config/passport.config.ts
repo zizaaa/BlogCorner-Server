@@ -18,9 +18,7 @@ passport.use(
             const filteredResult:filteredResultTypes = {
                 id:result.rows[0].id,
                 username:result.rows[0].username,
-                firstname:result.rows[0].firstname,
-                lastname:result.rows[0].lastname,
-                middlename:result.rows[0].middlename,
+                name:result.rows[0].name,
                 email:result.rows[0].email,
                 avatar:result.rows[0].avatar
             }

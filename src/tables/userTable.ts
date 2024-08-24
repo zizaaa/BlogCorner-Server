@@ -1,17 +1,25 @@
 import client from "../config/db.config";
 
+//update existing table
+export async function updateUserTable(){
+    const alterQuery = `
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS isVerified BOOLEAN DEFAULT FALSE;
+    `
+
+    await client.query(alterQuery)
+}
 // Create the users table first
 export async function createUserTable() {
     const createQuery = `
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) NOT NULL UNIQUE,
-        firstName VARCHAR(50) NOT NULL,
-        lastName VARCHAR(50) NOT NULL,
-        middleName VARCHAR(50),
+        name VARCHAR(50) NOT NULL,
         password VARCHAR(100) NOT NULL,
         email VARCHAR(100) NOT NULL UNIQUE,
         avatar VARCHAR(255),
+        isVerified BOOLEAN DEFAULT FALSE
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     `;
