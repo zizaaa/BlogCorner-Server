@@ -1,17 +1,17 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
 import userRoutes from './routes/user'
+import blogRoutes from './routes/blog'
 import './config/passport.config';
 import passport from 'passport';
 import path from 'path'
-import { createTables, updateUserTable } from './tables/userTable';
-import { tokenTable } from './tables/tokenTable';
 
 const app = express();
 
 app.use(cors())
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 app.set('view engine','ejs');
 app.set('views',path.join(__dirname,'views'))
 
@@ -22,10 +22,10 @@ app.use(passport.initialize());
 app.get('/api/validate/user', passport.authenticate('jwt', { session: false }), (req:Request, res:Response) => {
     return res.status(201).json(req.user)
 });
-// createTables()
-// updateUserTable()
-// tokenTable()
+
+
 app.use('/api/user', userRoutes)
+app.use('/api/blogs', blogRoutes)
 
 app.listen(8000,()=>{
     console.log('Server is running at port 8000')
