@@ -11,7 +11,7 @@ const app = express();
 app.use(cors())
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use('/src/uploads', express.static('./src/uploads'));
 app.set('view engine','ejs');
 app.set('views',path.join(__dirname,'views'))
 
@@ -22,7 +22,6 @@ app.use(passport.initialize());
 app.get('/api/validate/user', passport.authenticate('jwt', { session: false }), (req:Request, res:Response) => {
     return res.status(201).json(req.user)
 });
-
 
 app.use('/api/user', userRoutes)
 app.use('/api/blogs', blogRoutes)
