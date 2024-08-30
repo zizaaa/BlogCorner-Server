@@ -1,4 +1,4 @@
-# Server README
+# BlogCorner Server
 
 ## Overview
 
