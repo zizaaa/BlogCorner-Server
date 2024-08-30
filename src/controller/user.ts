@@ -77,7 +77,7 @@ export async function login(req:Request<{},{},userLogin>,res:Response){
 
         if (await argon2.verify(user.rows[0].password, password)) {
             const payload = { id: user.rows[0].id, username: user.rows[0].username };
-            const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+            const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '24h' });
     
             res.json({ message: 'Logged in successfully', token});
         } else {

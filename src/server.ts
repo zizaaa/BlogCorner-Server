@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express'
 import cors from 'cors'
 import userRoutes from './routes/user'
 import blogRoutes from './routes/blog'
+import bookMarkRoutes from './routes/bookmark'
 import './config/passport.config';
 import passport from 'passport';
 import path from 'path'
@@ -25,6 +26,7 @@ app.get('/api/validate/user', passport.authenticate('jwt', { session: false }), 
 
 app.use('/api/user', userRoutes)
 app.use('/api/blogs', blogRoutes)
+app.use('/api/bookmark', bookMarkRoutes)
 
 app.listen(8000,()=>{
     console.log('Server is running at port 8000')

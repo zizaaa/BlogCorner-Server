@@ -1,6 +1,7 @@
-import { Request, Response } from "express";
+import { query, Request, Response } from "express";
 import client from "../config/db.config";
 import { BlogFormData, GetBlogQuery, User } from "../types/blogs";
+import { formatCount } from "../utility/formatCount";
 
 export const postBlog = async (req: Request<{},{},BlogFormData>, res: Response) => {
     const insertQuery = `
@@ -23,7 +24,7 @@ export const postBlog = async (req: Request<{},{},BlogFormData>, res: Response) 
             userId
         ]);
 
-        res.status(201).json({ message: "Blog post created successfully", result });
+        return res.status(201).json({ message: "Blog post created successfully", result });
     } catch (error) {
         return res.status(500).json({ message: "An unexpected error occurred" });
     }
@@ -65,34 +66,6 @@ export const getSingleBlog = async(req:Request<{id:number}>,res:Response)=>{
     }
 }
 
-// export const getBlogVoteCounts = async (req: Request, res: Response) => {
-//     const { blogId } = req.params;
-
-//     try {
-//         // Query to get vote counts
-//         const result = await client.query(`
-//             SELECT
-//                 COALESCE(SUM(CASE WHEN u.blogId IS NOT NULL THEN 1 ELSE 0 END), 0) AS up_votes,
-//                 COALESCE(SUM(CASE WHEN d.blogId IS NOT NULL THEN 1 ELSE 0 END), 0) AS down_votes
-//             FROM blogs b
-//             LEFT JOIN up_voted u ON b.id = u.blogId
-//             LEFT JOIN down_voted d ON b.id = d.blogId
-//             WHERE b.id = $1
-//         `, [blogId]);
-
-//         res.status(200).json(result.rows[0]);
-
-//     } catch (error) {
-//         return res.status(500).json({ message: "An unexpected error occurred" });
-//     }
-// };
-// export const getPopularBlogs = async(req:Request,res:Response)=>{
-//     try {
-        
-//     } catch (error) {
-//         return res.status(500).json({ message: "An unexpected error occurred" });
-//     }
-// }
 
 export const handleUpvote = async (req: Request<{},{},{blogId:string}>, res: Response) => {
     const { blogId } = req.body;
@@ -109,7 +82,7 @@ export const handleUpvote = async (req: Request<{},{},{blogId:string}>, res: Res
             FROM up_voted
             WHERE userId = $1 AND blogId = $2
         `, [userId, blogId]);
-            console.log(existingUpvotes)
+
         if (existingUpvotes.rows[0]) {
             // If existing upvote, delete it
             await client.query(`
@@ -132,10 +105,10 @@ export const handleUpvote = async (req: Request<{},{},{blogId:string}>, res: Res
             WHERE userId = $1 AND blogId = $2
         `, [userId, blogId]);
 
-        res.status(200).json({ message: 'Upvote recorded' });
+        return res.status(200).json({ message: 'Upvote recorded' });
     } catch (error) {
         console.error('Error handling upvote:', error);
-        res.status(500).json({ message: "An unexpected error occurred" });
+        return res.status(500).json({ message: "An unexpected error occurred" });
     }
 };
 
@@ -154,7 +127,6 @@ export const handleDownvote = async (req: Request<{},{},{blogId:string}>, res: R
             FROM down_voted
             WHERE userId = $1 AND blogId = $2
         `, [userId, blogId]);
-            console.log(existingDownvotes)
 
         if (existingDownvotes.rows[0]) {
             // If existing downvote, delete it
@@ -178,9 +150,94 @@ export const handleDownvote = async (req: Request<{},{},{blogId:string}>, res: R
             WHERE userId = $1 AND blogId = $2
         `, [userId, blogId]);
 
-        res.status(200).json({ message: 'Downvote recorded' });
+        return res.status(200).json({ message: 'Downvote recorded' });
     } catch (error) {
         console.error('Error handling upvote:', error);
-        res.status(500).json({ message: "An unexpected error occurred" });
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+};
+
+export const handleGetVotes = async(req: Request<{}, {}, {}, { blogId: string }>, res: Response) => {
+    const { blogId } = req.query;
+
+    const upVoteQuery = `
+        SELECT COUNT(*) as count from up_voted
+        WHERE blogid = $1
+    `;
+
+    const downVoteQuery = `
+        SELECT COUNT(*) as count from down_voted
+        WHERE blogid = $1
+    `;
+
+    try {
+        const upVoteResult = await client.query(upVoteQuery, [blogId]);
+        const downVoteResult = await client.query(downVoteQuery, [blogId]);
+
+        const upVotes = formatCount(parseInt(upVoteResult.rows[0]?.count || '0', 10));
+        const downVotes = formatCount(parseInt(downVoteResult.rows[0]?.count || '0', 10));
+
+        return res.status(200).json({
+            upVotes,
+            downVotes
+        });
+    } catch (error) {
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+};
+
+export const checkIsVoted = async (req: Request<{},{},{},{blogId:string,userId:string}>, res: Response) => {
+    const { blogId,userId } = req.query;
+
+    if (!userId || !blogId) {
+        return res.status(400).json({ message: "Missing user or blog ID" });
+    }
+
+    const isUpvotedQuery = `
+        SELECT * 
+        FROM up_voted
+        WHERE userid = $1 AND blogid = $2
+    `;
+    const isDownvotedQuery = `
+        SELECT * 
+        FROM down_voted
+        WHERE userid = $1 AND blogid = $2
+    `;
+
+    try {
+        const isUpvoted = await client.query(isUpvotedQuery, [userId, blogId]);
+        const isDownvoted = await client.query(isDownvotedQuery, [userId, blogId]);
+
+        return res.status(200).json({
+            upvoted: isUpvoted.rows.length > 0,
+            downvoted: isDownvoted.rows.length > 0 
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+};
+
+export const getTopBlogs = async (req:Request,res:Response) => {
+    const query = `
+        WITH TopBlogs AS (
+            SELECT blogid, COUNT(*) AS upvote_count
+            FROM up_voted
+            GROUP BY blogid
+            ORDER BY upvote_count DESC
+            LIMIT 5
+        )
+        SELECT b.id, b.title, b.created_at
+        FROM blogs b
+        INNER JOIN TopBlogs tb ON b.id = tb.blogid
+        ORDER BY tb.upvote_count DESC;
+    `;
+
+    try {
+        const result = await client.query(query);
+
+        return res.status(200).json(result.rows);
+    } catch (error) {
+        return res.status(500).json({ message: "An unexpected error occurred" });
     }
 };
