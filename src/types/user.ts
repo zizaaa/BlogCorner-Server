@@ -18,3 +18,8 @@ export interface filteredResultTypes{
     email:string;
     avatar?:string;
 }
+
+export interface Passwords{
+    oldPassword:string;
+    newPassword:string;
+}

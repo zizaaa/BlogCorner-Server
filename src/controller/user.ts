@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
-import { userData, userLogin } from "../types/user";
+import { Passwords, userData, userLogin } from "../types/user";
 import { emailSender } from './mailer/emailSender'
 import jwt, { JsonWebTokenError, JwtPayload, TokenExpiredError } from 'jsonwebtoken'
 import client from "../config/db.config";
 import * as argon2 from "argon2";
 import { resetPassword } from "./mailer/resetPassword";
 import { deleteToken, getToken, insertToken } from "./tokenController";
+import { User } from "../types/blogs";
 require('dotenv').config();
 
 export async function registerUser(req:Request<{},{},userData>, res:Response) {
@@ -77,7 +78,7 @@ export async function login(req:Request<{},{},userLogin>,res:Response){
 
         if (await argon2.verify(user.rows[0].password, password)) {
             const payload = { id: user.rows[0].id, username: user.rows[0].username };
-            const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '24h' });
+            const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '12h' });
     
             res.json({ message: 'Logged in successfully', token});
         } else {
@@ -269,3 +270,178 @@ export async function resetForgottedPass(req: Request<{}, {}, { newPassword: str
         return res.status(500).json({ message: 'An unexpected error occurred.' });
     }
 }
+
+export const getSingleUser = async(req:Request<{},{},{},{userId:string}>,res:Response) =>{
+    const {userId} = req.query;
+
+    try {
+        const result = await client.query(`
+            SELECT id,username,email,name,avatar,created_at 
+            FROM users 
+            WHERE id = $1`,
+            [userId]
+        )
+            if(result.rows.length <= 0){
+                return res.status(404).json({message:'User not found'})
+            }
+        return res.status(200).json(result.rows[0])
+    } catch (error) {
+        return res.status(500).json({ message: 'An unexpected error occurred.' });
+    }
+}
+
+export const updateName = async (req: Request<{},{},{  name: string }>, res: Response) => {
+    const { name } = req.body;
+    const userId = (req.user as User)?.id;
+
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+    try {
+        // Check if user exists
+        const existing = await client.query(
+            `SELECT * FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (existing.rows.length <= 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update the user's name
+        await client.query(
+            `UPDATE users SET name = $1 WHERE id = $2`,
+            [name, userId] // Correct order of parameters
+        );
+
+        return res.status(200).json({ message: 'Name changed successfully' });
+    } catch (error) {
+        console.error('Error updating name:', error);
+        return res.status(500).json({ message: 'An unexpected error occurred.' });
+    }
+};
+
+export const updateEmail = async (req: Request<{},{},{email:string}>, res: Response) => {
+    const { email } = req.body;
+    const userId = (req.user as User)?.id;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    try {
+        // Check if user exists
+        const existing = await client.query(
+            `SELECT * FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (existing.rows.length <= 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update the user's email
+        const result = await client.query(
+            `UPDATE users SET email = $1,isverified = false WHERE id = $2 RETURNING email;`,
+            [email, userId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(500).json({ message: 'Failed to update email' });
+        }
+
+        const updatedEmail = result.rows[0].email;
+
+        // Generate token with the updated email
+        const payload = { email: updatedEmail };
+        const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+
+        // Save token
+        await insertToken(token);
+
+        // Send verification email
+        emailSender(updatedEmail, token);
+
+        return res.status(200).json({ message: 'Email changed successfully' });
+    } catch (error) {
+        console.error('Error updating email:', error);
+        return res.status(500).json({ message: 'An unexpected error occurred.' });
+    }
+};
+
+export const handleUpdatePassword = async(req: Request<{}, {}, Passwords>, res: Response) => {
+    const { oldPassword, newPassword } = req.body;
+    const userId = (req.user as User)?.id;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    try {
+        // Check if user exists
+        const existing = await client.query(
+            `SELECT * FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const user = existing.rows[0];
+
+        // Verify old password
+        const validPassword = await argon2.verify(user.password, oldPassword);
+        if (!validPassword) {
+            return res.status(401).json({ message: "Incorrect old password!" });
+        }
+
+        // Hash new password and update
+        const hash = await argon2.hash(newPassword);
+        await client.query(
+            `UPDATE users SET password = $1 WHERE id = $2`,
+            [hash, userId]
+        );
+
+        return res.status(200).json({ message: 'Password changed successfully!' });
+    } catch (error) {
+        console.error('Error updating password:', error);
+        return res.status(500).json({ message: 'An unexpected error occurred.' });
+    }
+};
+
+export const updateUserAvatar = async(req: Request, res: Response) => {
+    const userId = (req.user as User)?.id;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    if (!req.file?.path) {
+        return res.status(400).json({ message: 'File not found' });
+    }
+
+    try {
+        // Check if user exists
+        const existing = await client.query(
+            `SELECT * FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Update avatar in database
+        await client.query(
+            `UPDATE users SET avatar = $2 WHERE id = $1`,
+            [userId, req.file.path]
+        );
+
+        return res.status(200).json({ message: "Image successfully changed" });
+    } catch (error) {
+        console.error('Error updating avatar:', error);
+        return res.status(500).json({ message: 'An unexpected error occurred.' });
+    }
+};
