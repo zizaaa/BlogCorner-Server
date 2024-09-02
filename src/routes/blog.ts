@@ -1,7 +1,7 @@
 import { Router } from "express";
 import passport from "passport";
 import { upload } from "../controller/multer";
-import { checkIsVoted, getBlogs, getSingleBlog, getTopBlogs, handleDownvote, handleGetVotes, handleUpvote, postBlog } from "../controller/blog";
+import { checkIsVoted, getBlogs, getPostedBlogs, getSingleBlog, getTopBlogs, handleDownvote, handleGetVotes, handleUpvote, postBlog } from "../controller/blog";
 
 const router = Router();
 
@@ -20,4 +20,6 @@ router.get('/get/votes', handleGetVotes)
 router.get('/get/isvoted', checkIsVoted)
 
 router.get('/get/popular', passport.authenticate('jwt', { session: false }), getTopBlogs)
+
+router.get('/get/all/posted', passport.authenticate('jwt', { session: false }), getPostedBlogs)
 export default router;

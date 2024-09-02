@@ -1,29 +1,27 @@
 import { query, Request, Response } from "express";
 import client from "../config/db.config";
-import { BlogFormData, GetBlogQuery, User } from "../types/blogs";
+import { BlogFormData, GetAllPostedBlogs, GetBlogQuery, User } from "../types/blogs";
 import { formatCount } from "../utility/formatCount";
 
 export const postBlog = async (req: Request<{},{},BlogFormData>, res: Response) => {
-    const insertQuery = `
-        INSERT INTO blogs
-        (title, content, cover_img, up_vote, down_vote, owner)
-        VALUES ($1, $2, $3, 0, 0, $4);
-    `;
     try {
-        // Type assertion to ensure TypeScript understands req.user has an id
         const userId = (req.user as User)?.id;
         
         if (!userId) {
             return res.status(400).json({ message: "User ID is missing" });
         }
 
-        const result = await client.query(insertQuery, [
+        const result = await client.query(`
+            INSERT INTO blogs
+            (title, content, cover_img, owner)
+            VALUES ($1, $2, $3, $4);`, 
+        [
             req.body.title,
             req.body.content,
             req.file?.path,
             userId
         ]);
-
+        console.log(result)
         return res.status(201).json({ message: "Blog post created successfully", result });
     } catch (error) {
         return res.status(500).json({ message: "An unexpected error occurred" });
@@ -238,6 +236,106 @@ export const getTopBlogs = async (req:Request,res:Response) => {
 
         return res.status(200).json(result.rows);
     } catch (error) {
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+};
+
+export const getPostedBlogs = async (req: Request<{},{},{},GetAllPostedBlogs>, res: Response) => {
+    const userId = req.query.userId;
+
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Get pagination parameters from the request query
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;  // Default to 10 results per page
+
+    const offset = (page - 1) * limit;
+
+    try {
+        // Get total count of blogs by the user
+        const countQuery = `
+            SELECT COUNT(*) 
+            FROM blogs 
+            WHERE owner = $1;
+        `;
+        const { rows: countResult } = await client.query(countQuery, [userId]);
+        const totalBlogs = parseInt(countResult[0].count, 10);
+
+        // Get paginated blogs by the user
+        const blogsQuery = `
+            SELECT 
+                b.id, 
+                b.title, 
+                b.content, 
+                b.owner,
+                b.created_at 
+            FROM 
+                blogs b
+            WHERE 
+                b.owner = $1
+            ORDER BY 
+                b.created_at DESC
+            LIMIT $2
+            OFFSET $3;
+        `;
+        const { rows: blogs } = await client.query(blogsQuery, [userId, limit, offset]);
+
+        // If no blogs found
+        if (blogs.length === 0) {
+            return res.status(200).json({ blogs: [], total: totalBlogs, page, limit });
+        }
+
+        // For each blog, get the count of upvotes and downvotes
+        const blogIds = blogs.map(blog => blog.id);
+
+        const upvotesQuery = `
+            SELECT 
+                blogid, 
+                COUNT(*) as upvotes 
+            FROM 
+                up_voted 
+            WHERE 
+                blogid = ANY($1)
+            GROUP BY 
+                blogid;
+        `;
+        const downvotesQuery = `
+            SELECT 
+                blogid, 
+                COUNT(*) as downvotes 
+            FROM 
+                down_voted 
+            WHERE 
+                blogid = ANY($1)
+            GROUP BY 
+                blogid;
+        `;
+
+        const { rows: upvotes } = await client.query(upvotesQuery, [blogIds]);
+        const { rows: downvotes } = await client.query(downvotesQuery, [blogIds]);
+
+        // Combine blogs with their respective upvotes and downvotes
+        const blogsWithVotes = blogs.map(blog => {
+            const upvote = upvotes.find(u => u.blogid === blog.id);
+            const downvote = downvotes.find(d => d.blogid === blog.id);
+
+            return {
+                ...blog,
+                upvotes: upvote ? parseInt(upvote.upvotes, 10) : 0,
+                downvotes: downvote ? parseInt(downvote.downvotes, 10) : 0
+            };
+        });
+
+        return res.status(200).json({
+            blogs: blogsWithVotes,
+            total: totalBlogs,
+            page,
+            limit
+        });
+    } catch (error) {
+        console.error('Error fetching blogs:', error);
         return res.status(500).json({ message: "An unexpected error occurred" });
     }
 };
