@@ -1,0 +1,22 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const user_1 = require("../controller/user");
+const passport_1 = __importDefault(require("passport"));
+const multer_1 = require("../controller/multer");
+const router = (0, express_1.Router)();
+router.post('/register', user_1.registerUser);
+router.post('/login', user_1.login);
+router.get('/verify', user_1.verifyUser);
+router.post('/reset-password', user_1.forgotPassword);
+router.get('/change-password', user_1.sendResetPassForm);
+router.post('/insert-updated-password', user_1.resetForgottedPass);
+router.get('/single/user', passport_1.default.authenticate('jwt', { session: false }), user_1.getSingleUser);
+router.put('/update/name', passport_1.default.authenticate('jwt', { session: false }), user_1.updateName);
+router.put('/update/email', passport_1.default.authenticate('jwt', { session: false }), user_1.updateEmail);
+router.put('/update/password', passport_1.default.authenticate('jwt', { session: false }), user_1.handleUpdatePassword);
+router.put('/update/avatar', passport_1.default.authenticate('jwt', { session: false }), multer_1.upload.single('avatar'), user_1.updateUserAvatar);
+exports.default = router;

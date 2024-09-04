@@ -1,0 +1,20 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const passport_1 = __importDefault(require("passport"));
+const multer_1 = require("../controller/multer");
+const blog_1 = require("../controller/blog");
+const router = (0, express_1.Router)();
+router.post('/post/blog', passport_1.default.authenticate('jwt', { session: false }), multer_1.upload.single('cover'), blog_1.postBlog);
+router.get('/get/blogs', blog_1.getBlogs);
+router.get('/get/single/blog/:id', blog_1.getSingleBlog);
+router.post('/upvote/blog', passport_1.default.authenticate('jwt', { session: false }), blog_1.handleUpvote);
+router.post('/downvote/blog', passport_1.default.authenticate('jwt', { session: false }), blog_1.handleDownvote);
+router.get('/get/votes', blog_1.handleGetVotes);
+router.get('/get/isvoted', blog_1.checkIsVoted);
+router.get('/get/popular', passport_1.default.authenticate('jwt', { session: false }), blog_1.getTopBlogs);
+router.get('/get/all/posted', passport_1.default.authenticate('jwt', { session: false }), blog_1.getPostedBlogs);
+exports.default = router;

@@ -24,6 +24,9 @@ app.get('/api/validate/user', passport.authenticate('jwt', { session: false }), 
     return res.status(201).json(req.user)
 });
 
+app.use('/api/welcome', async(req:Request,res:Response)=>{
+    res.send('Welcome to blogcorner');
+});
 app.use('/api/user', userRoutes)
 app.use('/api/blogs', blogRoutes)
 app.use('/api/bookmark', bookMarkRoutes)
