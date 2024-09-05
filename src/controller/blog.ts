@@ -1,6 +1,6 @@
 import { query, Request, Response } from "express";
 import client from "../config/db.config";
-import { BlogFormData, GetAllPostedBlogs, GetBlogQuery, User } from "../types/blogs";
+import { BlogFormData, GetAllPostedBlogs, GetBlogQuery, UpdateBlogFormData, User } from "../types/blogs";
 import { formatCount } from "../utility/formatCount";
 
 export const postBlog = async (req: Request<{},{},BlogFormData>, res: Response) => {
@@ -336,6 +336,92 @@ export const getPostedBlogs = async (req: Request<{},{},{},GetAllPostedBlogs>, r
         });
     } catch (error) {
         console.error('Error fetching blogs:', error);
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+};
+
+export const getSingleOwnedBlog = async(req:Request<{id:number}>,res:Response)=>{
+    const {id} = req.params;
+    const userId = (req.user as User)?.id;
+
+    if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const query = `
+        SELECT *
+        FROM blogs
+        WHERE id = $1
+        AND owner = $2;
+    `
+    try {
+        const result = await client.query(query,[id,userId])
+
+        return res.status(200).json(result.rows[0])
+    } catch (error) {
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+}
+
+export const updateBlog = async (req: Request<{}, {}, UpdateBlogFormData>, res: Response) => {
+    try {
+        const userId = (req.user as User)?.id;
+
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is missing" });
+        }
+
+        // Perform the update query
+        const result = await client.query(
+            `
+            UPDATE blogs SET
+            title = $1, content = $2, cover_img = $3
+            WHERE owner = $4 AND id = $5
+            RETURNING *;
+            `,
+            [
+                req.body.title,
+                req.body.content,
+                req.file?.path,
+                userId,
+                req.body.id
+            ]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Blog post not found or you are not authorized to update this post." });
+        }
+
+        return res.status(200).json({ message: "Blog post updated successfully", blog: result.rows[0] });
+    } catch (error) {
+        console.error(error); 
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+};
+
+export const deleteBlog = async (req: Request<{ id: string }>, res: Response) => {
+    const userId = (req.user as User)?.id;
+    const blogId = req.params.id;
+
+    if (!userId) {
+        return res.status(400).json({ message: "User ID is missing" });
+    }
+
+    try {
+        // Delete the blog where both the blog ID and user ID match
+        const result = await client.query(
+            `DELETE FROM blogs WHERE id = $1 AND owner = $2`,
+            [blogId, userId]
+        );
+
+        // Check if any rows were affected (i.e., if a blog was actually deleted)
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Blog post not found or you are not authorized to delete this post." });
+        }
+
+        return res.status(200).json({ message: 'Blog post deleted successfully' });
+    } catch (error) {
+        console.error(error);
         return res.status(500).json({ message: "An unexpected error occurred" });
     }
 };

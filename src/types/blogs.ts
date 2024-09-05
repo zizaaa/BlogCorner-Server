@@ -17,3 +17,9 @@ export interface GetAllPostedBlogs{
     limit:string;
     userId:string;
 }
+
+export interface UpdateBlogFormData{
+    id: string;
+    title: string;
+    content: string;
+}
