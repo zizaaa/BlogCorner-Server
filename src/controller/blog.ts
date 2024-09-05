@@ -398,6 +398,41 @@ export const updateBlog = async (req: Request<{}, {}, UpdateBlogFormData>, res: 
         return res.status(500).json({ message: "An unexpected error occurred" });
     }
 };
+export const updateBlogWithExistingImage = async (req: Request<{}, {}, UpdateBlogFormData>, res: Response) => {
+    try {
+        const userId = (req.user as User)?.id;
+
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is missing" });
+        }
+
+        // Perform the update query
+        const result = await client.query(
+            `
+            UPDATE blogs SET
+            title = $1, content = $2, cover_img = $3
+            WHERE owner = $4 AND id = $5
+            RETURNING *;
+            `,
+            [
+                req.body.title,
+                req.body.content,
+                req.body.path,
+                userId,
+                req.body.id
+            ]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Blog post not found or you are not authorized to update this post." });
+        }
+
+        return res.status(200).json({ message: "Blog post updated successfully", blog: result.rows[0] });
+    } catch (error) {
+        console.error(error); 
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+};
 
 export const deleteBlog = async (req: Request<{ id: string }>, res: Response) => {
     const userId = (req.user as User)?.id;

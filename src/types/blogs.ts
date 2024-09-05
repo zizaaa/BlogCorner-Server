@@ -22,4 +22,5 @@ export interface UpdateBlogFormData{
     id: string;
     title: string;
     content: string;
+    path?:string;
 }
