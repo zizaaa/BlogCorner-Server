@@ -12,6 +12,12 @@ export interface GetBlogQuery{
     limit:string;
 }
 
+export interface GetBlogByUserQuery{
+    page:string;
+    limit:string;
+    userId:string;
+}
+
 export interface GetAllPostedBlogs{
     page:string;
     limit:string;

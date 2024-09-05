@@ -1,7 +1,7 @@
 import { Router } from "express";
 import passport from "passport";
 import { upload } from "../controller/multer";
-import { checkIsVoted, deleteBlog, getBlogs, getPostedBlogs, getSingleBlog, getSingleOwnedBlog, getTopBlogs, handleDownvote, handleGetVotes, handleUpvote, postBlog, updateBlog, updateBlogWithExistingImage } from "../controller/blog";
+import { checkIsVoted, deleteBlog, getBlogByOwner, getBlogs, getPostedBlogs, getSingleBlog, getSingleOwnedBlog, getTopBlogs, handleDownvote, handleGetVotes, handleUpvote, postBlog, updateBlog, updateBlogWithExistingImage } from "../controller/blog";
 
 const router = Router();
 
@@ -30,4 +30,6 @@ router.put('/update', passport.authenticate('jwt', { session: false }), upload.s
 router.put('/update/2', passport.authenticate('jwt', { session: false }), updateBlogWithExistingImage)
 
 router.delete('/delete/:id', passport.authenticate('jwt', { session: false }), deleteBlog)
+
+router.get('/get/blogs/by/owner', passport.authenticate('jwt', { session: false }), getBlogByOwner)
 export default router;

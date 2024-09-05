@@ -1,6 +1,6 @@
 import { query, Request, Response } from "express";
 import client from "../config/db.config";
-import { BlogFormData, GetAllPostedBlogs, GetBlogQuery, UpdateBlogFormData, User } from "../types/blogs";
+import { BlogFormData, GetAllPostedBlogs, GetBlogByUserQuery, GetBlogQuery, UpdateBlogFormData, User } from "../types/blogs";
 import { formatCount } from "../utility/formatCount";
 
 export const postBlog = async (req: Request<{},{},BlogFormData>, res: Response) => {
@@ -270,7 +270,8 @@ export const getPostedBlogs = async (req: Request<{},{},{},GetAllPostedBlogs>, r
                 b.title, 
                 b.content, 
                 b.owner,
-                b.created_at 
+                b.created_at, 
+                b.cover_img
             FROM 
                 blogs b
             WHERE 
@@ -460,3 +461,23 @@ export const deleteBlog = async (req: Request<{ id: string }>, res: Response) =>
         return res.status(500).json({ message: "An unexpected error occurred" });
     }
 };
+
+export const getBlogByOwner = async(req:Request<{},{},{},GetBlogByUserQuery>,res:Response)=>{
+    const { page, limit, userId} = req.query;
+    
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    const query = `
+        SELECT * FROM blogs
+        WHERE owner = $3
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2;
+    `
+    try {
+        const result = await client.query(query,[limit,offset,userId]);
+
+        return res.status(200).json(result.rows)
+    } catch (error) {
+        return res.status(500).json({ message: "An unexpected error occurred" });
+    }
+}
