@@ -21,7 +21,7 @@ export const postBlog = async (req: Request<{},{},BlogFormData>, res: Response) 
             req.file?.path,
             userId
         ]);
-        console.log(result)
+
         return res.status(201).json({ message: "Blog post created successfully", result });
     } catch (error) {
         return res.status(500).json({ message: "An unexpected error occurred" });
@@ -242,7 +242,7 @@ export const getTopBlogs = async (req:Request,res:Response) => {
 
 export const getPostedBlogs = async (req: Request<{},{},{},GetAllPostedBlogs>, res: Response) => {
     const userId = req.query.userId;
-    console.log(userId)
+
     if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
     }

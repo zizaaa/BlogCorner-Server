@@ -20,11 +20,11 @@ passport.use(
                 username:result.rows[0].username,
                 name:result.rows[0].name,
                 email:result.rows[0].email,
-                avatar:result.rows[0].avatar
+                avatar:result.rows[0].avatar,
+                isverified:result.rows[0].isverified,
             }
             
             if (result.rows.length > 0) {
-                console.log(jwt_payload)
                 return done(null, filteredResult);
             } else {
                 console.log('Unauthorized')

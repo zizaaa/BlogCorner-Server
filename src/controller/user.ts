@@ -72,11 +72,12 @@ export async function login(req:Request<{},{},userLogin>,res:Response){
                 return res.status(404).json({message:"User not found!"})
             }
 
+        if (await argon2.verify(user.rows[0].password, password)) {
+            
             if(user.rows[0].isverified === false){
                 return res.status(400).json({message:"Account not verified"})
             }
 
-        if (await argon2.verify(user.rows[0].password, password)) {
             const payload = { id: user.rows[0].id, username: user.rows[0].username };
             const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '12h' });
     
@@ -86,6 +87,33 @@ export async function login(req:Request<{},{},userLogin>,res:Response){
             return res.status(401).json({message:"Incorrect password!"})
         }
 
+    } catch (error) {
+        return res.status(500).json({message:error})
+    }
+}
+
+export async function rsndVrfctnLnk(req:Request<{},{},{email:string}>,res:Response) {
+    const {email} = req.body;
+    console.log(email)
+    try {
+        const result = await client.query(`
+            SELECT *
+            FROM users
+            WHERE email = $1`,
+            [email]
+        )
+
+        const payload = { email:result.rows[0].email };
+        const token = jwt.sign(payload, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+
+        //save token
+        await insertToken(token)
+        //send verification email
+        emailSender(result.rows[0].email,token);
+
+        return res.status(200).json({
+            message:"success"
+        })
     } catch (error) {
         return res.status(500).json({message:error})
     }
@@ -276,7 +304,7 @@ export const getSingleUser = async(req:Request<{},{},{},{userId:string}>,res:Res
 
     try {
         const result = await client.query(`
-            SELECT id,username,email,name,avatar,created_at 
+            SELECT id,username,email,name,avatar,created_at,isverified 
             FROM users 
             WHERE id = $1`,
             [userId]

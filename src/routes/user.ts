@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { forgotPassword, getSingleUser, handleUpdatePassword, login, registerUser, resetForgottedPass, sendResetPassForm, updateEmail, updateName, updateUserAvatar, verifyUser } from "../controller/user";
+import { forgotPassword, getSingleUser, handleUpdatePassword, login, registerUser, resetForgottedPass, rsndVrfctnLnk, sendResetPassForm, updateEmail, updateName, updateUserAvatar, verifyUser } from "../controller/user";
 import passport from "passport";
 import { upload } from "../controller/multer";
 
@@ -26,4 +26,6 @@ router.put('/update/email', passport.authenticate('jwt', { session: false }), up
 router.put('/update/password', passport.authenticate('jwt', { session: false }), handleUpdatePassword)
 
 router.put('/update/avatar', passport.authenticate('jwt', { session: false }), upload.single('avatar'), updateUserAvatar)
+
+router.post('/resend/verification', rsndVrfctnLnk)
 export default router;

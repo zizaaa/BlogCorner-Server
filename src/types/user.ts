@@ -17,6 +17,7 @@ export interface filteredResultTypes{
     name:string;
     email:string;
     avatar?:string;
+    isverified:string;
 }
 
 export interface Passwords{
