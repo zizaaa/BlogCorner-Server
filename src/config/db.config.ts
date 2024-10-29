@@ -6,7 +6,10 @@ const client = new Client({
     host:process.env.PG_HOST,
     database:process.env.PG_DATABASE,
     password:process.env.PG_PASSWORD,
-    port:process.env.PG_PORT ? parseInt(process.env.PG_PORT) : undefined
+    port:process.env.PG_PORT ? parseInt(process.env.PG_PORT) : undefined,
+    ssl: {
+        rejectUnauthorized: false, // Allow self-signed SSL certificates if needed
+    }
 })
 
 client.connect()
